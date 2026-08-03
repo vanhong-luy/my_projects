@@ -1,0 +1,95 @@
+body {
+    font-family: Arial, sans-serif;
+  }
+  
+  .hero-section {
+    background: url('images/roof.jpg') no-repeat center center;
+    background-size: cover;
+    height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .hero-section h1 {
+    font-weight: 600;
+  }
+  .hero-section p {
+    font-size: 1.5rem;
+  }
+  .custom-btn {
+    background-color: crimson;
+    color: white;
+    border-color: crimson;
+  }
+  
+  .custom-btn:hover {
+    background-color: darkred;
+    border-color: darkred;
+  }
+  .text-left {
+    text-align: left;
+  }
+  .text-left-btn{
+    text-align: left;
+    display: inline-block;
+    margin-top: 10px;
+  }
+  .inspection-request {
+    background-color: white;
+  }
+  .about-section img {
+    max-width: 100%;
+  }
+  
+  .services-section .card {
+    margin-bottom: 30px;
+    background-color: black;
+    color: white;
+  }
+  .services-section {
+    background-color: black;
+  }
+  
+  .contact-section {
+    background-color: #f8f9fa;
+  }
+  .additional-section {
+    background-color: gold;
+  }
+  .additional-section p {
+    color: crimson;
+  }
+  .star-rating .fa-star {
+    color: gold;
+  }
+  .review-card {
+    margin-bottom: 30px;
+  }
+  .review-card img {
+    width: 60px;
+    height: 60px;
+  }
+  .offset-md-1 {
+    margin-left: 8.33333%;
+  }
+  .position-relative {
+    position: relative;
+  }
+  .position-absolute {
+    position: absolute;
+    top: 0;
+  }
+  .middle-review {
+    top: -30px; /* Adjust based on how high you want it */
+  }
+  .contact-section {
+    background-color: #f8f9fa; /* Light background color */
+    border-radius: 5px; /* Optional: rounded corners */
+  }
+  .custom-bg {
+    background-image: url('images/hero-image.jpg');
+    background-size: cover; /* Ensure the background covers the entire section */
+    background-position: center; /* Center the background image */
+    background-repeat: no-repeat; /* Prevent the background from repeating */
+  }
+/*about.html part */
