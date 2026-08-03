@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Prairie King — WASD + Mouse Aim</title>
+  <style>
+    body,html{height:100%;margin:0;background:#111;color:#eee;display:flex;align-items:center;justify-content:center;font-family:sans-serif}
+    #canvas{background:#0b5a33;display:block;border:6px solid #222;box-shadow:0 6px 30px rgba(0,0,0,.6)}
+  </style>
+</head>
+<body>
+  <canvas id="canvas" width="640" height="480"></canvas>
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let keys = {};
+let score = 0, lives = 3, wave = 1, paused = false, gameOver = false;
+
+const player = { 
+  x: W/2, y: H/2, w: 20, h: 20, speed: 150, color: '#ffe680', shootCooldown: 0.25, shootTimer: 0,
+  angle: 0
+};
+let bullets = [];
+let enemies = [];
+let enemySpawnTimer = 0, enemySpawnInterval = 1.2, waveEnemies = 6;
+
+let mouseX = W/2, mouseY = H/2;
+let mouseDown = false;
+
+function rand(min,max){ return Math.random()*(max-min)+min }
+window.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = e.clientX - rect.left;
+  mouseY = e.clientY - rect.top;
+});
+
+canvas.addEventListener('mousedown', e => {
+  if(e.button === 0) mouseDown = true;
+});
+canvas.addEventListener('mouseup', e => {
+  if(e.button === 0) mouseDown = false;
+});
+
+function spawnEnemy(type='basic'){
+  const ex = rand(20, W-40);
+  let enemy;
+  if(type==='basic'){
+    enemy = {x:ex, y:-30, w:20, h:20, speed: rand(30,70)+wave*6, color:'#ff6b6b', health:1};
+  } else if(type==='tanky'){
+    enemy = {x:ex, y:-30, w:26, h:26, speed: rand(20,40)+wave*3, color:'#c94eff', health:4};
+  } else if(type==='speedy'){
+    enemy = {x:ex, y:-30, w:16, h:16, speed: rand(80,110)+wave*8, color:'#4ec9ff', health:1};
+  }
+  enemies.push(enemy);
+}
+
+function resetGame(){ 
+  score=0; lives=3; wave=1; paused=false; gameOver=false; 
+  player.x=W/2; player.y=H/2; bullets=[]; enemies=[]; enemySpawnTimer=0; waveEnemies=6; 
+}
+
+let last = performance.now();
+function loop(t){
+  const dt = Math.min(0.05,(t-last)/1000);
+  last=t;
+  if(!paused && !gameOver) update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function update(dt){
+  // Movement: WASD
+  let mvx=0, mvy=0;
+  if(keys['w']) mvy -= 1;
+  if(keys['s']) mvy += 1;
+  if(keys['a']) mvx -= 1;
+  if(keys['d']) mvx += 1;
+  const len = Math.hypot(mvx,mvy)||1;
+  player.x += (mvx/len)*player.speed*dt;
+  player.y += (mvy/len)*player.speed*dt;
+  player.x = Math.max(0, Math.min(W-player.w, player.x));
+  player.y = Math.max(0, Math.min(H-player.h, player.y));
+  
+  // Update player angle to face mouse
+  const px = player.x + player.w/2;
+  const py = player.y + player.h/2;
+  player.angle = Math.atan2(mouseY - py, mouseX - px);
+  
+  // Shooting: mouse left button
+  player.shootTimer -= dt;
+  if(mouseDown && player.shootTimer <= 0){
+    const speed = 420;
+    bullets.push({
+      x: px,
+      y: py,
+      vx: Math.cos(player.angle) * speed,
+      vy: Math.sin(player.angle) * speed,
+      size: 6,
+      life: 1.6
+    });
+    player.shootTimer = player.shootCooldown;
+  }
+  
+  // Bullets update
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];
+    b.x+=b.vx*dt; b.y+=b.vy*dt; b.life-=dt;
+    if(b.life<=0) bullets.splice(i,1);
+  }
+  
+  // Spawn logic
+  if(enemies.length===0 && waveEnemies<=0){ 
+    wave++; 
+    waveEnemies=6+(wave-1)*2; 
+    enemySpawnInterval=Math.max(0.45,1.2-(wave-1)*0.06); 
+  }
+  enemySpawnTimer-=dt;
+  if(enemySpawnTimer<=0 && waveEnemies>0){
+    let type='basic';
+    if(wave % 3 === 0 && Math.random()<0.3) type='tanky';
+    else if(wave % 2 === 0 && Math.random()<0.4) type='speedy';
+    spawnEnemy(type);
+    enemySpawnTimer=enemySpawnInterval; waveEnemies--;
+  }
+  
+  // Enemy update
+  for(let i=enemies.length-1;i>=0;i--){
+    const e=enemies[i];
+    const dx=player.x-e.x, dy=player.y-e.y, d=Math.hypot(dx,dy)||1;
+    e.x += (dx/d)*e.speed*dt;
+    e.y += (dy/d)*e.speed*dt;
+    if(rectCollision(e,player)){ enemies.splice(i,1); hitPlayer(); continue; }
+    for(let j=bullets.length-1;j>=0;j--){
+      const b=bullets[j];
+      if(pointInRect(b.x,b.y,e)){ 
+        bullets.splice(j,1); 
+        e.health--; 
+        if(e.health<=0){ enemies.splice(i,1); score+=100; } 
+        break; 
+      }
+    }
+  }
+}
+
+function hitPlayer(){ 
+  lives--; 
+  if(lives<=0) gameOver=true; 
+  player.x=W/2; player.y=H/2; 
+  bullets=[]; 
+}
+
+function draw(){
+  ctx.fillStyle='#0b5a33'; ctx.fillRect(0,0,W,H);
+  
+  // Draw player with rotation
+  ctx.save();
+  ctx.translate(player.x+player.w/2, player.y+player.h/2);
+  ctx.rotate(player.angle);
+  ctx.fillStyle=player.color;
+  ctx.fillRect(-player.w/2, -player.h/2, player.w, player.h);
+  ctx.restore();
+  
+  // Draw bullets
+  ctx.fillStyle='#fff'; 
+  for(const b of bullets) ctx.fillRect(b.x-b.size/2,b.y-b.size/2,b.size,b.size);
+  
+  // Draw enemies
+  for(const e of enemies){ 
+    ctx.fillStyle=e.color; 
+    ctx.fillRect(e.x,e.y,e.w,e.h); 
+  }
+  
+  // HUD
+  ctx.fillStyle='#fff'; 
+  ctx.fillText(`Score: ${score} Lives: ${lives} Wave: ${wave}`,10,20);
+  if(paused) ctx.fillText('PAUSED', W/2-30, H/2);
+  if(gameOver) ctx.fillText('GAME OVER - Press R', W/2-60, H/2);
+}
+
+function rectCollision(a,b){ 
+  return !(a.x+a.w<b.x||a.x>b.x+b.w||a.y+a.h<b.y||a.y>b.y+b.h); 
+}
+function pointInRect(px,py,r){ 
+  return px>=r.x && px<=r.x+r.w && py>=r.y && py<=r.y+r.h; 
+}
+
+window.addEventListener('keydown', e=>{ 
+  if(e.key==='p') paused=!paused; 
+  if(e.key==='r') resetGame(); 
+});
+
+resetGame();
+</script>
+</body>
+</html>
